@@ -19,8 +19,32 @@ DATA_XML="data_zip/${INPUT_LAYER}.xtf"
 LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
 LAW_XML="OeREBKRM_V2_0_Gesetze.xml"
 
-ili2pg=ili2pg-4.6.0.jar
+ili2pg_version=${3:-"4.6.0"}
+ili2pg_path="ili2pg"
+ili2pg="${ili2pg_path}/ili2pg-${ili2pg_version}.jar"
+ili2pg_zip="ili2pg-${ili2pg_version}.zip"
+ili2pg_url="https://downloads.interlis.ch/ili2pg/${ili2pg_zip}"
 
+
+
+
+check_data() {
+    # Check if tranlsation files for Text and Theme exist.
+    file_to_check=${1}
+    if ( ! wget --spider "${file_to_check}" 2>/dev/null ); then
+       echo "The file ${file_to_check} is not available."
+       echo "Check if the file name has change"
+       exit 1
+    fi
+    echo "File ${ifile_to_check} is available - continuing"
+}
+
+download_targets() {
+    local target="${1}"
+    echo "downloading file ${target}"
+    echo "${PWD}"
+    wget -N --backups ${target}
+}
 
 run_check() {
     # 1. check imput:
@@ -42,35 +66,14 @@ run_check() {
 
     # 3. check if the LAW_XML_DOWNLOAD (laws) are available --> the name of the file can change
     check_data ${LAW_XML_DOWNLOAD}
-}
 
-check_data() {
-    # Check if tranlsation files for Text and Theme exist.
-    file_to_check=${1}
-    if ( ! wget --spider "${file_to_check}" 2>/dev/null ); then
-       echo "The file ${file_to_check} is not available."
-       echo "Check if the file name has change"
-       exit 1
+    # 4. check if ili2pg is avaiable or downloadable
+    if ! [ -f "${ili2pg}" ];
+    then
+        check_data ${ili2pg_url}
+        download_targets ${ili2pg_url}
+        unzip -o ${ili2pg_zip} -d ${ili2pg_path}
     fi
-    echo "File ${ifile_to_check} is available - continuing"
-}
-
-
-get_illi2pg() {
-    illi2pg_version=${1:-"4.6.0"}
-    illi2pg_url="https://downloads.interlis.ch/ili2pg/ili2pg-${illi2pg_version}.zip"
-
-    check_data illi2pg_url
-    download_targets illi2pg_url
-
-
-}
-
-download_targets() {
-    local target="${1}"
-    echo "downloading file ${target}"
-    echo "${PWD}"
-    wget -N --backups ${target}
 }
 
 download() {
@@ -93,12 +96,12 @@ download() {
 }
 
 shema_import(){
-    java -jar $ili2pg \
+    java -jar ${ili2pg} \
         --schemaimport \
-        --dbhost $PGHOST \
-        --dbport $PGPORT  \
-        --dbdatabase $PGDB \
-        --dbusr $PGUSER \
+        --dbhost ${PGHOST} \
+        --dbport ${PGPORT}  \
+        --dbdatabase ${PGDB} \
+        --dbusr ${PGUSER} \
         --dbpwd ${PGPASSWORD} \
         --dbschema ${SCHEMA_NAME} \
         --defaultSrsAuth "EPSG" \
@@ -122,7 +125,6 @@ shema_import(){
 
 import_laws() {
     var_dataset="OeREBKRM_V2_0"
-
     java -jar ${ili2pg} \
         --import \
         --dbhost ${PGHOST} \
@@ -137,24 +139,29 @@ import_laws() {
 
 import_data() {
     var_dataset="OeREBKRMtrsfr_V2_0.Transferstruktur"
-    java -jar $ili2pg \
+    java -jar ${ili2pg} \
         --import \
-        --dbhost $PGHOST \
-        --dbport $PGPORT  \
-        --dbdatabase $PGDB \
-        --dbusr $PGUSER \
-        --dbpwd $PGPASSWORD \
-        --dbschema $SCHEMA_NAME \
+        --dbhost ${PGHOST} \
+        --dbport ${PGPORT}  \
+        --dbdatabase ${PGDB} \
+        --dbusr ${PGUSER} \
+        --dbpwd ${PGPASSWORD} \
+        --dbschema ${SCHEMA_NAME} \
         --defaultSrsAuth EPSG \
         --defaultSrsCode 2056 \
         --strokeArcs \
-        --dataset $var_dataset \
+        --dataset ${var_dataset} \
         "${INPUT_LAYER}/${DATA_XML}"
 }
 
+clean() {
+    rm -rf ${INPUT_LAYER}
+}
 
+clean
 run_check
 download # "ch.bav.kataster-belasteter-standorte-oev_v2_0.oereb"
 shema_import
 import_laws
 import_data
+clean
