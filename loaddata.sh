@@ -1,4 +1,36 @@
-# !/bin/bash
+#!/bin/bash
+
+# What the script does:
+#----------------------
+#   1. Downloads a federal oereb theme form data.geo.admin.ch
+#   2. Creats a new DB schema with the needed structur
+#   3. Downloads and adds the laws in to the DB
+#   4. Loads the theme data into the DB
+#
+#   -> Once the data is loaded in to the DB this can be used for pyramid_OEREB
+#
+# What the script Depends on:
+#----------------------------
+#   For loading the intelis data and creating the schema ili2pg is used. If it is not available it will be downloaded.
+#   The version can be set on running the script
+#
+# How to run:
+#------------
+#   $ bash loaddata.sh INPUT_LAYER SCHEMA_NAME [illi2pg_version]
+#   i.e:
+#   $ bash loaddata.sh ch.bav.kataster-belasteter-standorte-oev_v2_0.oereb contaminated_public_transport_sites
+#
+#   INPUT_LAYER: one of the available federal themes
+#   ili2pg_version: an available version of ili2pg (https://downloads.interlis.ch/ili2pg/)
+#
+# Note:
+#------
+#   You will need to adapt the DB connection parameter so it fits your need
+#
+# Author:
+#--------
+#   Marion Baumgartner, Camptocamp SA, Switzerland
+
 
 # TODO Define DB connection:
 PGHOST=localhost
@@ -157,6 +189,9 @@ import_data() {
 clean() {
     rm -rf ${INPUT_LAYER}
 }
+
+# clean up upon error
+trap clean ERR EXIT
 
 clean
 run_check
