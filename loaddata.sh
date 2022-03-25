@@ -33,11 +33,12 @@
 
 
 # TODO Define DB connection:
+
 PGHOST=localhost
-PGPORT=5432
-PGDB="test_oereb_import"
-PGUSER="postgres"
-PGPASSWORD="postgres"
+PGPORT=25432
+PGDB="test_DB"
+PGUSER="www-data"
+PGPASSWORD="www-data"
 
 SCHEMA_NAME=${2} # "contaminated_public_transport_sites"
 

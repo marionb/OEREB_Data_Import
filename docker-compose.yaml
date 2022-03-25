@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  # postgres 11 postgis 2.5 -> https://hub.docker.com/r/camptocamp/postgres/tags
+  db_old:
+    image: camptocamp/postgres:11-postgis-2.5
+    environment:
+      POSTGRES_USER: www-data
+      POSTGRES_PASSWORD: www-data
+      POSTGRES_DB: test_DB
+    ports:
+      - 25432:5432
+
