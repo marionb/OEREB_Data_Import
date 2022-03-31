@@ -46,9 +46,9 @@ help()
    echo
    echo "General options:"
    echo "----------------"
-   echo "--help, -h,          print this help"
+   echo "--help -h            print this help"
    echo "--ILI2PGVERSION      ili2pg version to be used (default: 4.6.0)" #TODO test with newer version
-   echo "--CREATE_SCHEMA, -c  switch to drop (if it exists) and creat the schema (default: on/true)"
+   echo "--CREATE_SCHEMA -c   switch to drop (if it exists) and creat the schema (default: on/true)"
    echo
    echo "Connection options:"
    echo "-------------------"
@@ -148,7 +148,6 @@ shema_import(){
     echo "# shema_import #"
     # remove old schema if it exists:
     psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -c "DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE;"
-    #psql "host=localhost port=25432 user=www-data password=www-data dbname=test_DB" -c "DROP SCHEMA IF EXISTS contaminated_public_transport_sites CASCADE;
     # create new shema
     java -jar ${ili2pg} \
         --schemaimport \
