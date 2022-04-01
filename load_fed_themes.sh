@@ -10,17 +10,27 @@
 # help                                                     #
 ############################################################
 help(){
-   echo "Write/Update OEREB V2 data in a DB"
-   echo
-   echo "Syntax:"
-   echo "-------"
-   echo "                ./load_fed_data.sh [OPTIONS]"
-   echo
-   echo "Options:"
-   echo "--------"
-   echo "-h --help      print this help"
-   echo "-u --update    "
-   echo "-f --file      CSV file containing the themes: id,schema,C/F,Download,THEME ID "
+    echo "Write/Update OEREB V2 data in a DB"
+    echo
+    echo "Syntax:"
+    echo "-------"
+    echo "              ./load_fed_data.sh [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "--------"
+    echo "-h --help     Print this help"
+    echo "-u --update   If this swich is called only data updates are performed"
+    echo "-f --file     CSV file containing the themes: id,schema,C/F,Download,THEME ID "
+    echo "-e --envDBVar Use environmet variabls for the DB connection"
+    echo "              The following variables are set:"
+    echo "              DBHOST, DBPORT, DBNAME, DBUSER, DBPASSWORD"
+    echo
+    echo "Connection options:"
+    echo "-------------------"
+    echo "--PGHOST      database server host (default: localhost)"
+    echo "--PGPW        database password (default: www-data)"
+    echo "--PGUSER      database user name (default: www-data)"
+    echo "--PGPORT      database server port (default: 25432)"
 }
 
 ############################################################
@@ -28,10 +38,11 @@ help(){
 ############################################################
 update() {
     ./loaddata.sh \
-        --PGHOST localhost \
-        --PGPASSWORD www-data \
-        --PGUSER www-data \
-        --PGPORT 25432 \
+        --PGHOST ${PGHOST} \
+        --PGPASSWORD ${PGPW} \
+        --PGUSER ${PGUSER} \
+        --PGDB ${PGName} \
+        --PGPORT ${PGPORT} \
         --CREATE_SCHEMA \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2
@@ -42,10 +53,11 @@ update() {
 ############################################################
 loaddata() {
     ./loaddata.sh \
-        --PGHOST localhost \
-        --PGPASSWORD www-data \
-        --PGUSER www-data \
-        --PGPORT 25432 \
+        --PGHOST ${PGHOST} \
+        --PGPASSWORD ${PGPW} \
+        --PGUSER ${PGUSER} \
+        --PGDB ${PGName} \
+        --PGPORT ${PGPORT} \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2        
 }
@@ -56,12 +68,17 @@ loaddata() {
 FEDTHEME="FEDTHEMES.csv"
 update=false
 
+# DB connections
+PGHOST=localhost
+PGPORT=25432
+PGName="test_DB"
+PGUSER="www-data"
+PGPW="www-data"
+ENVDB=false
+
 PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o huf: --long help,update,file: -- "$@")
 VALID_ARGUMENTS=$?
 
-echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
-
-# if [ "${VALID_ARGUMENTS}" -eq 0 ] || [ "${VALID_ARGUMENTS}" != "0" ]; then
 if [ "${VALID_ARGUMENTS}" != "0" ]; then
     help
     exit 1
@@ -74,7 +91,7 @@ do
   case "$1" in
     --help | -h)
         help
-        break
+        exit
         ;;
     --update | -u)
         update=true
@@ -84,6 +101,33 @@ do
         FEDTHEME="$2"
         shift
         ;;
+    --envDBVar | -e)
+        ENVDB=true
+        ;;
+    --PGHOST)
+      PGHOST=$2
+      echo "set PGHOST to : $2"
+      shift
+      ;;
+    --PGPORT)
+      PGPORT=$2
+      echo "set PGPORT to : $2"
+      shift
+      ;;
+    --PGDB)
+      PGDB=$2
+      echo "set PGDB to : $2"
+      shift
+      ;;
+    --PGUSER)
+      PGUSER=$2
+      echo "set PGUSER to : $2"
+      shift
+      ;;
+    --PGPASSWORD)
+      PGPASSWORD=$2
+      shift
+      ;;
     --) # end of the argments; break out of the while
         shift; break ;;
     *) # Inalid option
@@ -93,6 +137,15 @@ do
         ;;
   esac
 done
+
+# Use env. variables for DB connections:
+if [ ${ENVDB} == "true" ]; then
+    PGHOST=${DBHOST}
+    PGPORT=${DBPORT}
+    PGName=${DBNAME}
+    PGUSER=${DBUSER}
+    PGPW=${DBPASSWORD}
+fi
 
 arr_record1=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f1) )
 arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
