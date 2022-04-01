@@ -2,9 +2,6 @@
 # Author:
 #--------
 #   Marion Baumgartner, Camptocamp SA, Switzerland
-# TODO:
-#------
-#   Set the DB parameters
 
 ############################################################
 # help                                                     #
@@ -28,9 +25,10 @@ help(){
     echo "Connection options:"
     echo "-------------------"
     echo "--PGHOST      database server host (default: localhost)"
-    echo "--PGPW        database password (default: www-data)"
+    echo "--PGPASSWORD  database password (default: www-data)"
     echo "--PGUSER      database user name (default: www-data)"
     echo "--PGPORT      database server port (default: 25432)"
+    echo "--PGDB        database name (deafault: test_DB)"
 }
 
 ############################################################
@@ -59,7 +57,7 @@ loaddata() {
         --PGDB ${PGName} \
         --PGPORT ${PGPORT} \
         --SCHEMA_NAME $1 \
-        --INPUT_LAYER $2        
+        --INPUT_LAYER $2
 }
 
 ############################################################
@@ -76,7 +74,7 @@ PGUSER="www-data"
 PGPW="www-data"
 ENVDB=false
 
-PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o huf: --long help,update,file: -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o huf: --long help,update,file:envDBVar,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:, -- "$@")
 VALID_ARGUMENTS=$?
 
 if [ "${VALID_ARGUMENTS}" != "0" ]; then
@@ -95,7 +93,6 @@ do
         ;;
     --update | -u)
         update=true
-        shift
         ;;
     --file | -f)
         FEDTHEME="$2"
@@ -105,29 +102,29 @@ do
         ENVDB=true
         ;;
     --PGHOST)
-      PGHOST=$2
-      echo "set PGHOST to : $2"
-      shift
-      ;;
+        PGHOST=$2
+        echo "set PGHOST to : $2"
+        shift
+        ;;
     --PGPORT)
-      PGPORT=$2
-      echo "set PGPORT to : $2"
-      shift
-      ;;
+        PGPORT=$2
+        echo "set PGPORT to : $2"
+        shift
+        ;;
     --PGDB)
-      PGDB=$2
-      echo "set PGDB to : $2"
-      shift
-      ;;
+        PGName=$2
+        echo "set PGDB to : $2"
+        shift
+        ;;
     --PGUSER)
-      PGUSER=$2
-      echo "set PGUSER to : $2"
-      shift
-      ;;
+        PGUSER=$2
+        echo "set PGUSER to : $2"
+        shift
+        ;;
     --PGPASSWORD)
-      PGPASSWORD=$2
-      shift
-      ;;
+        PGPW=$2
+        shift
+        ;;
     --) # end of the argments; break out of the while
         shift; break ;;
     *) # Inalid option

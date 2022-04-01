@@ -29,8 +29,6 @@
 ############################################################
 help()
 {
-   # Display Help TODO
-   #-o hc --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION:
    echo "Write/Update OEREB V2 data in a DB"
    echo
    echo "Syntax:"
@@ -56,6 +54,7 @@ help()
    echo "--PGPASSWORD     database password (default: www-data)"
    echo "--PGUSER         database user name (default: www-data)"
    echo "--PGPORT         database server port (default: 25432)"
+   echo "--PGDB           database name (deafault: test_DB)"
 }
 
 ############################################################
