@@ -218,6 +218,19 @@ import_data() {
 # update_data                                              #
 ############################################################
 update_data() {
+    echo "# update_laws #"
+    var_dataset="OeREBKRM_V2_0"
+    java -jar ${ili2pg} \
+        --update \
+        --dbhost ${PGHOST} \
+        --dbport ${PGPORT}  \
+        --dbdatabase ${PGDB} \
+        --dbusr ${PGUSER} \
+        --dbpwd ${PGPASSWORD} \
+        --dbschema ${SCHEMA_NAME} \
+        --dataset ${var_dataset} \
+        "${INPUT_LAYER}/${LAW_XML}"
+
     echo "# update_data #"
     var_dataset="OeREBKRMtrsfr_V2_0.Transferstruktur"
     java -jar ${ili2pg} \
@@ -240,7 +253,9 @@ update_data() {
 ############################################################
 create_missing_tables() {
     echo "# create_missing_tables #"
-    sql_to_load="tables_for_trsf_struct.sql"
+    full_path=$(realpath $0)
+    dir_path=$(dirname $full_path)
+    sql_to_load="${dir_path}/tables_for_trsf_struct.sql"
     if [ -f ${sql_to_load} ]; then
       psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -v user="\"${PGUSER}\"" -v "schema=${SCHEMA_NAME}" -f ${sql_to_load}
     else
@@ -284,7 +299,6 @@ LAW_XML="OeREBKRM_V2_0_Gesetze.xml"
 
 ili2pg_version="4.7.0"
 ili2pg_path="ili2pg"
-
 
 #--------------------------#
 # Get options & set options
@@ -375,19 +389,23 @@ ili2pg_url="https://downloads.interlis.ch/ili2pg/${ili2pg_zip}"
 
 #-------------------#
 # Run the functions
-clean
-run_check
-download
+loaddata_main() {
+  clean
+  run_check
+  download
 
-if [ ${CREATE_SCHEMA} == "true" ]; then
-  # creat the schema import the data and the laws and creat missing tables
-  shema_import
-  import_laws
-  import_data
-  create_missing_tables
-else
-  # only run an update of the data
-  update_data
-fi
+  if [ ${CREATE_SCHEMA} == "true" ]; then
+    # creat the schema import the data and the laws and creat missing tables
+    shema_import
+    import_laws
+    import_data
+    create_missing_tables
+  else
+    # only run an update of the data
+    echo update_data
+  fi
 
-clean
+  clean
+}
+
+loaddata_main

@@ -36,7 +36,3 @@ TABLESPACE pg_default;
 
 ALTER TABLE :schema.verfuegbarkeit
     OWNER to :user;
-
-
-INSERT INTO :schema.verfuegbarkeit (bfsnr, verfuegbar) VALUES
-(2854, TRUE);

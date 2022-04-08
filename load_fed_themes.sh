@@ -18,7 +18,7 @@ help(){
     echo "-h --help     Print this help"
     echo "-u --update   If this swich is called only data updates are performed"
     echo "-f --file     CSV file containing the themes: id,schema,C/F,Download,THEME ID "
-    echo "-e --envDBVar Use environmet variabls for the DB connection"
+    # echo "-e --envDBVar Use environmet variabls for the DB connection"
     echo "              The following variables are set:"
     echo "              DBHOST, DBPORT, DBNAME, DBUSER, DBPASSWORD"
     echo
@@ -35,7 +35,7 @@ help(){
 # update                                                   #
 ############################################################
 update() {
-    ./loaddata.sh \
+    ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
         --PGUSER ${PGUSER} \
@@ -50,7 +50,7 @@ update() {
 # loaddata                                                 #
 ############################################################
 loaddata() {
-    ./loaddata.sh \
+    ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
         --PGUSER ${PGUSER} \
@@ -63,7 +63,20 @@ loaddata() {
 ############################################################
 # Main program                                             #
 ############################################################
-FEDTHEME="FEDTHEMES.csv"
+# set current script path
+full_path=$(realpath $0)
+dir_path=$(dirname $full_path)
+
+# set path variables with file path
+FEDTHEME="${dir_path}/FEDTHEMES.csv"
+loaddata="${dir_path}/loaddata.sh"
+
+if ! [ -f "${loaddata}" ];
+then
+  echo "can not find bash script ${loaddata}"
+  exit 1
+fi
+
 update=false
 
 # DB connections
@@ -74,6 +87,7 @@ PGUSER="www-data"
 PGPW="www-data"
 ENVDB=false
 
+# Parsing command line arguments
 PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o huf: --long help,update,file:envDBVar,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:, -- "$@")
 VALID_ARGUMENTS=$?
 
@@ -98,9 +112,9 @@ do
         FEDTHEME="$2"
         shift
         ;;
-    --envDBVar | -e)
-        ENVDB=true
-        ;;
+    #--envDBVar | -e)
+    #    ENVDB=true
+    #    ;;
     --PGHOST)
         PGHOST=$2
         echo "set PGHOST to : $2"
@@ -133,16 +147,17 @@ do
         exit 1
         ;;
   esac
+  shift
 done
 
-# Use env. variables for DB connections:
-if [ ${ENVDB} == "true" ]; then
-    PGHOST=${DBHOST}
-    PGPORT=${DBPORT}
-    PGName=${DBNAME}
-    PGUSER=${DBUSER}
-    PGPW=${DBPASSWORD}
-fi
+# # Use env. variables for DB connections:
+# if [ ${ENVDB} == "true" ]; then
+#     PGHOST=${DBHOST}
+#     PGPORT=${DBPORT}
+#     PGName=${DBNAME}
+#     PGUSER=${DBUSER}
+#     PGPW=${DBPASSWORD}
+# fi
 
 arr_record1=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f1) )
 arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
@@ -169,3 +184,4 @@ do
             ;;
     esac
 done
+echo "--- Finished loading all layers from ${FEDTHEME} ---"
