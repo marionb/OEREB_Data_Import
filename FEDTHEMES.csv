@@ -17,4 +17,4 @@ ch.Laermempfindlichkeitsstufen,noise_sensitivity_levels,C,unset,unset
 ch.StatischeWaldgrenzen,forest_perimeters,C,unset,unset
 ch.Waldabstandslinien,forest_distance_lines,C,unset,unset
 ch.ProjektierungszonenStarkstromanlagen,nominal_high_voltage_reserved_zones,F,https://data.geo.admin.ch/ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb/,ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb
-ch.BaulinienStarkstromanlagen,forest_distance_lines,F,https://data.geo.admin.ch/ch.bfe.baulinien-starkstromanlagen_v2_0.oereb/,ch.bfe.baulinien-starkstromanlagen_v2_0.oereb
+ch.BaulinienStarkstromanlagen,high_voltage_installations_building_lines,F,https://data.geo.admin.ch/ch.bfe.baulinien-starkstromanlagen_v2_0.oereb/,ch.bfe.baulinien-starkstromanlagen_v2_0.oereb

@@ -1,4 +1,6 @@
 --- datenintegration ---
+--- NOTE: there is work in progress to move this table in to the main schema.
+---       once this is done this script and the part of the code that calls it can be removed.
 
 CREATE TABLE IF NOT EXISTS :schema.datenintegration
 (
@@ -18,21 +20,4 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE :schema.datenintegration
-    OWNER to :user;
-
-
---- verfuegbarkeit ---
-
-CREATE TABLE IF NOT EXISTS :schema.verfuegbarkeit
-(
-    bfsnr int NOT NULL,
-    verfuegbar boolean NOT NULL,
-    CONSTRAINT verfuegbarkeit_pkey PRIMARY KEY (bfsnr)
-)
-WITH (
-    OIDS = FALSE
-)
-TABLESPACE pg_default;
-
-ALTER TABLE :schema.verfuegbarkeit
     OWNER to :user;
