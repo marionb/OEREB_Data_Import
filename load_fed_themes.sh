@@ -112,7 +112,7 @@ do
         FEDTHEME="$2"
         shift
         ;;
-    #--envDBVar | -e)
+    #--envDBVar | -e) # TODO read the DB connection params from evironment variables
     #    ENVDB=true
     #    ;;
     --PGHOST)
@@ -141,7 +141,7 @@ do
         ;;
     --) # end of the argments; break out of the while
         shift; break ;;
-    *) # Inalid option
+    *) # Invalid option
         echo "Error: Invalid option: $1"
         echo "Try ./load_fed_themes.sh -h"
         exit 1
@@ -164,6 +164,7 @@ arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
 arr_record3=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f3) )
 arr_record5=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f5) )
 
+# uncomment to debug
 # echo "schema_name : ${arr_record2[@]}"
 
 length=${#arr_record1[@]}

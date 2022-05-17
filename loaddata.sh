@@ -18,7 +18,6 @@
 #   - For loading the intelis data and creating the schema ili2pg is used. 
 #     If it is not available it will be downloaded.
 #     The version can be set on running the script.
-#   - tables_for_trsf_struct.sql for adding the missung tables
 #
 # Author:
 #--------
@@ -79,7 +78,7 @@ download_targets() {
     echo "# download_targets #"
     echo "downloading file ${target}"
     echo "${PWD}"
-    wget -N --backups ${target}
+    wget -N ${target}
 }
 
 ############################################################
@@ -128,14 +127,14 @@ download() {
     download_targets "${WGET_SOURCE}"
 
     echo "Unzip files"
-    unzip -o "${WGET_FILENAME}" -d "data_zip"
+    unzip -o "${WGET_FILENAME}" -d "${ZIP_DEST}"
 
     # rename data file to something stable
-    cp data_zip/*_20*.xtf "data_zip/${INPUT_LAYER}.xtf"
+    cp "${ZIP_DEST}/*_20*.xtf" "${ZIP_DEST}/${INPUT_LAYER}.xtf"
 
     download_targets "${LAW_XML_DOWNLOAD}"
     cp $(basename "${LAW_XML_DOWNLOAD}") ${LAW_XML}
-    chmod g+r data_zip/*
+    chmod g+r ${ZIP_DEST}/*
     cd $OLDPWD
     set -e
 }
@@ -249,23 +248,6 @@ update_data() {
 }
 
 ############################################################
-# create_missing_tables                                    #
-############################################################
-create_missing_tables() {
-    echo "# create_missing_tables #"
-    full_path=$(realpath $0)
-    dir_path=$(dirname $full_path)
-    sql_to_load="${dir_path}/tables_for_trsf_struct.sql"
-    if [ -f ${sql_to_load} ]; then
-      psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -v user="\"${PGUSER}\"" -v "schema=${SCHEMA_NAME}" -f ${sql_to_load}
-    else
-      echo "The file ${sql_to_load} does not exist!"
-      echo "Can not load the tables of the transfere structure."
-      exit 1
-    fi
-}
-
-############################################################
 # clean                                                    #
 ############################################################
 clean() {
@@ -292,6 +274,7 @@ CREATE_SCHEMA=true
 
 INPUT_LAYER=unset
 WGET_FILENAME="data.zip"
+ZIP_DEST="data_zip"
 
 
 LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
@@ -399,7 +382,6 @@ loaddata_main() {
     shema_import
     import_laws
     import_data
-    create_missing_tables
   else
     # only run an update of the data
     echo update_data
