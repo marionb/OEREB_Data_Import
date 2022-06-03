@@ -130,7 +130,7 @@ download() {
     unzip -o "${WGET_FILENAME}" -d "${ZIP_DEST}"
 
     # rename data file to something stable
-    cp "${ZIP_DEST}/*_20*.xtf" "${ZIP_DEST}/${INPUT_LAYER}.xtf"
+    cp ${ZIP_DEST}/*_20*.xtf ${ZIP_DEST}/${INPUT_LAYER}.xtf
 
     download_targets "${LAW_XML_DOWNLOAD}"
     cp $(basename "${LAW_XML_DOWNLOAD}") ${LAW_XML}
@@ -251,6 +251,8 @@ update_data() {
 # clean                                                    #
 ############################################################
 clean() {
+    echo "# clean #"
+    echo "remove ${INPUT_LAYER}"
     rm -rf ${INPUT_LAYER}
 }
 
