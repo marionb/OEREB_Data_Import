@@ -6,7 +6,7 @@
 #   2. Creats a new DB schema with the needed structur
 #   3. Downloads and adds the laws in to the DB
 #   4. Loads the theme data into the DB
-#   5. Create the missung tables datenintegration and verfuegbarkeit in the schema. 
+#   5. Create the missung tables datenintegration and verfuegbarkeit in the schema.
 #      They empty and are not filled
 #
 #   If the data already exists in the DB use the -c switch to just run an update of the data
@@ -15,7 +15,7 @@
 #
 # What the script Depends on:
 #----------------------------
-#   - For loading the intelis data and creating the schema ili2pg is used. 
+#   - For loading the intelis data and creating the schema ili2pg is used.
 #     If it is not available it will be downloaded.
 #     The version can be set on running the script.
 #
@@ -171,7 +171,7 @@ shema_import(){
         --expandLocalised \
         --setupPgExt \
         --strokeArcs \
-        --models OeREBKRMtrsfr_V2_0
+        --models OeREBKRMtrsfr_V2_0  >/dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -189,7 +189,7 @@ import_laws() {
         --dbpwd ${PGPASSWORD} \
         --dbschema ${SCHEMA_NAME} \
         --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${LAW_XML}"
+        "${INPUT_LAYER}/${LAW_XML}" > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -210,7 +210,7 @@ import_data() {
         --defaultSrsCode 2056 \
         --strokeArcs \
         --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${DATA_XML}"
+        "${INPUT_LAYER}/${DATA_XML}"  > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -228,7 +228,7 @@ update_data() {
         --dbpwd ${PGPASSWORD} \
         --dbschema ${SCHEMA_NAME} \
         --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${LAW_XML}"
+        "${INPUT_LAYER}/${LAW_XML}" > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 
     echo "# update_data #"
     var_dataset="OeREBKRMtrsfr_V2_0.Transferstruktur"
@@ -244,7 +244,7 @@ update_data() {
         --defaultSrsCode 2056 \
         --strokeArcs \
         --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${DATA_XML}"
+        "${INPUT_LAYER}/${DATA_XML}" > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -275,10 +275,11 @@ SCHEMA_NAME=unset # "contaminated_public_transport_sites"
 CREATE_SCHEMA=true
 
 INPUT_LAYER=unset
+WGET_SOURCE=unset
 WGET_FILENAME="data.zip"
 ZIP_DEST="data_zip"
 
-
+# TODO this needs to be modifiable
 LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
 LAW_XML="OeREBKRM_V2_0_Gesetze.xml"
 
@@ -287,7 +288,7 @@ ili2pg_path="ili2pg"
 
 #--------------------------#
 # Get options & set options
-PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hc --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION: -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcs --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION:,SOURCE: -- "$@")
 VALID_ARGUMENTS=$?
 
 echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
@@ -350,6 +351,11 @@ do
       echo "set ILI2PGVERSION to : $2"
       shift
       ;;
+    --SOURCE | -s)
+      WGET_SOURCE=$2
+      echo "set data source to: $2"
+      shift
+      ;;
     --) # end of the argments; break out of the while
       shift; break ;;
     *) # Inalid option
@@ -364,7 +370,14 @@ done
 #----------------------------------#
 # Set the seccondary variables
 WGET_TARGET="${INPUT_LAYER}"
-WGET_SOURCE="https://data.geo.admin.ch/${INPUT_LAYER}/${WGET_FILENAME}"
+
+if [[ ${WGET_SOURCE} -eq "unset" ]]; then
+    WGET_SOURCE="https://data.geo.admin.ch/${INPUT_LAYER}/${WGET_FILENAME}"
+    echo "----------------------------------"
+    echo "no download source given! Using the standart source:"
+    echo "${WGET_SOURCE}"
+    echo "----------------------------------"
+fi
 
 DATA_XML="data_zip/${INPUT_LAYER}.xtf"
 
