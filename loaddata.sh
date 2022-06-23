@@ -6,16 +6,14 @@
 #   2. Creats a new DB schema with the needed structur
 #   3. Downloads and adds the laws in to the DB
 #   4. Loads the theme data into the DB
-#   5. Create the missung tables datenintegration and verfuegbarkeit in the schema.
-#      They empty and are not filled
 #
-#   If the data already exists in the DB use the -c switch to just run an update of the data
+#   If the data already exists in the DB you can use the -c switch to just run an update of the data it is how ever not very well tested!
 #
 #   -> Once the data is loaded in to the DB this can be used for pyramid_OEREB
 #
 # What the script Depends on:
 #----------------------------
-#   - For loading the intelis data and creating the schema ili2pg is used.
+#   - For loading the interlis data and creating the schema ili2pg is used.
 #     If it is not available it will be downloaded.
 #     The version can be set on running the script.
 #
@@ -46,6 +44,9 @@ help()
    echo "--help -h            print this help"
    echo "--ILI2PGVERSION      ili2pg version to be used (default: 4.6.0)" #TODO test with newer version
    echo "--CREATE_SCHEMA -c   switch to drop (if it exists) and creat the schema (default: on/true)"
+   echo "--SOURCE -s          use a cusom data source to fetch the data from."
+   echo "                         if not set the default will be used:"
+   echo "                         https://data.geo.admin.ch/<INPUT_LAYER>/data.zip"
    echo
    echo "Connection options:"
    echo "-------------------"
