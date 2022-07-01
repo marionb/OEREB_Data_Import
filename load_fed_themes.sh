@@ -44,7 +44,8 @@ update() {
         --CREATE_SCHEMA \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
-        --SOURCE $3
+        --SOURCE $3 \
+        --LAWS $4
 }
 
 ############################################################
@@ -59,7 +60,8 @@ loaddata() {
         --PGPORT ${PGPORT} \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
-        --SOURCE $3
+        --SOURCE $3 \
+        --LAWS $4
 }
 
 ############################################################
@@ -166,6 +168,7 @@ arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
 arr_record3=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f3) )
 arr_record4=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f4) )
 arr_record5=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f5) )
+arr_record6=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f6) )
 
 # uncomment to debug
 # echo "source : ${arr_record4[@]}"
@@ -177,12 +180,13 @@ do
     input_layer=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record5[$j]}"`
     federal_theme=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record3[$j]}"`
     theme_url=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record4[$j]}"`
+    laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
 
     case ${federal_theme} in
         "F")
             [[ ${update} == "true" ]] && \
-                update ${schema_name} ${input_layer} ${theme_url}|| \
-                loaddata ${schema_name} ${input_layer} ${theme_url}
+                update ${schema_name} ${input_layer} ${theme_url} ${laws}|| \
+                loaddata ${schema_name} ${input_layer} ${theme_url} ${laws}
             ;;
         "C") 
             echo "${arr_record1[$j]} is not a federal theme - passing"

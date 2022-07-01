@@ -105,6 +105,7 @@ run_check() {
     check_data ${WGET_SOURCE}
 
     # 3. check if the LAW_XML_DOWNLOAD (laws) are available --> the name of the file can change
+    #TODO this ist probably not needed any more!
     check_data ${LAW_XML_DOWNLOAD}
 
     # 4. check if ili2pg is avaiable or downloadable
@@ -132,12 +133,55 @@ download() {
 
     # rename data file to something stable
     cp ${ZIP_DEST}/*_20*.xtf ${ZIP_DEST}/${INPUT_LAYER}.xtf
-
-    download_targets "${LAW_XML_DOWNLOAD}"
-    cp $(basename "${LAW_XML_DOWNLOAD}") ${LAW_XML}
     chmod g+r ${ZIP_DEST}/*
     cd $OLDPWD
+
+    # prepar the laws list and download them if needed
+    prepare_laws ${LAWS}
+
     set -e
+}
+
+prepare_laws(){
+  echo "# preparing laws for import #"
+  if [ -n "${LAWS}" ]; then
+
+    GIVEN_LAW_ARRAY=($(echo $LAWS | tr ";" "\n"))
+
+    length=${#GIVEN_LAW_ARRAY[@]}
+    for (( j=0; j<length; j++ )); do
+      law=${GIVEN_LAW_ARRAY[$j]}
+
+      if ( wget --spider "${law}" 2>/dev/null ); then # 1 check if it is a URL that can be dwonloades
+        echo "${law} is a URL download it:"
+        cd "${WGET_TARGET}"
+        download_targets ${law}
+        law_file=${WGET_TARGET}/$(basename "${law}")
+        LAW_ARRAY+=("${law_file}")
+        cd $OLDPWD
+      elif [ -f "${law}" ]; then # 2 check if it is a full file path
+        # just add the law to the array
+        # echo "${law} exists already using it!"
+        LAW_ARRAY+="${law}"
+      elif [ -f "${INPUT_LAYER}/${ZIP_DEST}/${law}" ]; then #3 check if it is a file within the data_zip
+        # echo "${law} exists already using it as ${INPUT_LAYER}/${ZIP_DEST}/${law}!"
+        LAW_ARRAY+="${INPUT_LAYER}/${ZIP_DEST}/${law}"
+      else
+        echo "---------------NOTICE----------------------"
+        echo "the law ${law} can not be found as file nor as url it will be ignored!"
+        echo "-------------------------------------------"
+      fi
+    done
+  else
+    # empty
+    echo "ERROR -------- All laws are missing!"
+    exit 1
+  fi
+
+  if [ ${#LAW_ARRAY[@]} -eq 0 ]; then
+    echo "ERROR -------- No valide law file to import!"
+    exit 1
+  fi
 }
 
 ############################################################
@@ -180,17 +224,22 @@ shema_import(){
 ############################################################
 import_laws() {
     echo "# import_laws #"
-    var_dataset="OeREBKRM_V2_0"
-    java -jar ${ili2pg} \
-        --import \
-        --dbhost ${PGHOST} \
-        --dbport ${PGPORT}  \
-        --dbdatabase ${PGDB} \
-        --dbusr ${PGUSER} \
-        --dbpwd ${PGPASSWORD} \
-        --dbschema ${SCHEMA_NAME} \
-        --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${LAW_XML}" > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
+
+    length=${#LAW_ARRAY[@]}
+    for (( j=0; j<${length}; j++ )); do
+      var_dataset="OeREBKRM_V2_0_${j}"
+      law=${LAW_ARRAY[$j]}
+      java -jar ${ili2pg} \
+          --import \
+          --dbhost ${PGHOST} \
+          --dbport ${PGPORT}  \
+          --dbdatabase ${PGDB} \
+          --dbusr ${PGUSER} \
+          --dbpwd ${PGPASSWORD} \
+          --dbschema ${SCHEMA_NAME} \
+          --dataset ${var_dataset} \
+          "${law}"  # > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
+    done
 }
 
 ############################################################
@@ -219,17 +268,22 @@ import_data() {
 ############################################################
 update_data() {
     echo "# update_laws #"
-    var_dataset="OeREBKRM_V2_0"
-    java -jar ${ili2pg} \
-        --update \
-        --dbhost ${PGHOST} \
-        --dbport ${PGPORT}  \
-        --dbdatabase ${PGDB} \
-        --dbusr ${PGUSER} \
-        --dbpwd ${PGPASSWORD} \
-        --dbschema ${SCHEMA_NAME} \
-        --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${LAW_XML}" > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
+
+    length=${#LAW_ARRAY[@]}
+    for (( j=0; j<${length}; j++ )); do
+      var_dataset="OeREBKRM_V2_0_${j}"
+      law=${LAW_ARRAY[$j]}
+      java -jar ${ili2pg} \
+          --update \
+          --dbhost ${PGHOST} \
+          --dbport ${PGPORT}  \
+          --dbdatabase ${PGDB} \
+          --dbusr ${PGUSER} \
+          --dbpwd ${PGPASSWORD} \
+          --dbschema ${SCHEMA_NAME} \
+          --dataset ${var_dataset} \
+          "${law}"  > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
+    done
 
     echo "# update_data #"
     var_dataset="OeREBKRMtrsfr_V2_0.Transferstruktur"
@@ -287,9 +341,11 @@ LAW_XML="OeREBKRM_V2_0_Gesetze.xml"
 ili2pg_version="4.7.0"
 ili2pg_path="ili2pg"
 
+declare -a LAW_ARRAY
+
 #--------------------------#
 # Get options & set options
-PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcs --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION:,SOURCE: -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcsl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION:,SOURCE:,LAWS: -- "$@")
 VALID_ARGUMENTS=$?
 
 echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
@@ -357,6 +413,11 @@ do
       echo "set data source to: $2"
       shift
       ;;
+    --LAWS | -l)
+      LAWS=$2
+      echo "set law sources: $2"
+      shift
+      ;;
     --) # end of the argments; break out of the while
       shift; break ;;
     *) # Inalid option
@@ -372,7 +433,7 @@ done
 # Set the seccondary variables
 WGET_TARGET="${INPUT_LAYER}"
 
-if [[ ${WGET_SOURCE} -eq "unset" ]]; then
+if [[ "${WGET_SOURCE}" == "unset" ]]; then
     WGET_SOURCE="https://data.geo.admin.ch/${INPUT_LAYER}/${WGET_FILENAME}"
     echo "----------------------------------"
     echo "no download source given! Using the standart source:"
@@ -380,7 +441,15 @@ if [[ ${WGET_SOURCE} -eq "unset" ]]; then
     echo "----------------------------------"
 fi
 
-DATA_XML="data_zip/${INPUT_LAYER}.xtf"
+if [ -z ${LAWS} ]; then
+    LAWS="${LAW_XML_DOWNLOAD}"
+    echo "----------------------------------"
+    echo "no laws prowided! Using the standart law file:"
+    echo "${LAWS}"
+    echo "----------------------------------"
+fi
+
+DATA_XML="${ZIP_DEST}/${INPUT_LAYER}.xtf"
 
 ili2pg="${ili2pg_path}/ili2pg-${ili2pg_version}.jar"
 ili2pg_zip="ili2pg-${ili2pg_version}.zip"
