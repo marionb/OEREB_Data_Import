@@ -83,9 +83,13 @@ loaddata() {
 ############################################################
 # Main program                                             #
 ############################################################
+# set -e
+set -u
+set -o pipefail
+
 ERROR_LOG_FILE="./error_logs.log"
 # clean the error log file
-rm ${ERROR_LOG_FILE}
+rm -f ${ERROR_LOG_FILE}
 
 # set current script path
 full_path=$(realpath $0)
@@ -194,35 +198,39 @@ arr_record6=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f6) )
 # uncomment to debug
 # echo "source : ${arr_record4[@]}"
 
-length=${#arr_record1[@]}
+length=${#arr_record4[@]}
 for (( j=0; j<length; j++ ));
 do
-    schema_name=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record2[$j]}"`
-    input_layer=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record5[$j]}"`
-    federal_theme=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record3[$j]}"`
-    theme_url=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record4[$j]}"`
+    load_theme=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record3[$j]}"`
 
-    # for more simplicity - handle empty theme_url here
-    if [ -z ${theme_url} ]; then
-      theme_url="unset"
+    if [[ ${load_theme} = 'Y' ]]; then
+      echo "${arr_record1[$j]} is a federal theme - treating"
+      schema_name=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record2[$j]}"`
+      input_layer=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record5[$j]}"`
+      theme_url=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record4[$j]}"`
+
+      # for more simplicity - handle theme_url here
+      if [[ -z ${theme_url} ]] || [[ "${theme_url}" = "unset" ]]; then
+        WGET_SOURCE="https://data.geo.admin.ch/${input_layer}/data.zip"
+        theme_url=${WGET_SOURCE}
+          echo "-------------NOTICE---------------------"
+          echo "no download source given! Using the standart source:"
+          echo "${WGET_SOURCE}"
+          echo "----------------------------------------"
+      fi
+
+      laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
+
+      [[ ${update} == "true" ]] && \
+        update ${schema_name} ${input_layer} ${theme_url} ${laws}|| \
+        loaddata ${schema_name} ${input_layer} ${theme_url} ${laws}
+    else
+      echo "${arr_record1[$j]} is not a federal theme - passing"
     fi
-
-    laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
-
-    case ${federal_theme} in
-        "F")
-            [[ ${update} == "true" ]] && \
-                update ${schema_name} ${input_layer} ${theme_url} ${laws}|| \
-                loaddata ${schema_name} ${input_layer} ${theme_url} ${laws}
-            ;;
-        "C") 
-            echo "${arr_record1[$j]} is not a federal theme - passing"
-            ;;
-    esac
 done
 
 
-if [ `wc -l < error_logs.log` -ge 0 ]; then
+if [[ -f ${ERROR_LOG_FILE} ]] && [[ `wc -l < ${ERROR_LOG_FILE}` -ge 0 ]]; then
     echo "---------------NOTICE------------------------"
     echo "Not all layers could be loaded!"
     echo "Check in ${ERROR_LOG_FILE} for more details!"

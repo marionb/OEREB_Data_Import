@@ -13,9 +13,11 @@
 #
 # What the script Depends on:
 #----------------------------
-#   - For loading the interlis data and creating the schema ili2pg is used.
+#   - For loading the interlis data and creating the schema ili2pg is used for this java is needes.
 #     If it is not available it will be downloaded.
 #     The version can be set on running the script.
+#   - There script uses a bunch of bash commandas such as:
+#     - unzip, wget, ... TODO complete the list
 #
 # Author:
 #--------
@@ -39,14 +41,21 @@ help()
    echo "                     this script can only load data that is available on  https://data.geo.admin.ch/"
    echo "--SCHEMA_NAME        the name of the DB schema to write the data in. If the oprion CREATE_SCHEMA is not set to false the schema will be created"
    echo
+   echo "--SOURCE -s          data source to fetch the data from. The federal themes can be found under:"
+   echo "                         https://data.geo.admin.ch/<INPUT_LAYER>/data.zip"
    echo "General options:"
    echo "----------------"
    echo "--help -h            print this help"
    echo "--ILI2PGVERSION      ili2pg version to be used (default: 4.6.0)" #TODO test with newer version
    echo "--CREATE_SCHEMA -c   switch to drop (if it exists) and creat the schema (default: on/true)"
-   echo "--SOURCE -s          use a cusom data source to fetch the data from."
-   echo "                         if not set the default will be used:"
-   echo "                         https://data.geo.admin.ch/<INPUT_LAYER>/data.zip"
+   echo "--LAWS               pass the files from which the laws are imported. Default used is given with the variable LAW_XML_DOWNLOAD and is currently set to:"
+   echo "                     http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
+   echo "                     The given file name can be:"
+   echo "                     a) a valide URL download path"
+   echo "                     b) a valide file path on the system"
+   echo "                     c) the bare name of a file (the file will be searched within the downloaded given SOURCE)"
+   echo "--ERROR_LOG          file in which the details about the failure of the theme is loged if there is an error"
+   echo "                     Default is ./error_logs.log"
    echo
    echo "Connection options:"
    echo "-------------------"
@@ -64,8 +73,8 @@ check_data() {
     # Check if tranlsation files for Text and Theme exist.
     file_to_check=${1}
     if ( ! wget --spider "${file_to_check}" 2>/dev/null ); then
-       echo "The file ${file_to_check} is not available."
-       echo "Check if the file name has change"
+       ERROR_MSG="The file ${file_to_check} is not available."
+       ERR_LINE=${LINENO}
        exit 1
     fi
     echo "File ${file_to_check} is available - continuing"
@@ -88,25 +97,26 @@ download_targets() {
 run_check() {
     echo "# run_checks #"
     # 1. check imput:
-    if [ "${INPUT_LAYER}" = "unset" ];
-    then
-        echo "No theme is specified. Please specify a theme"
+    if [ "${INPUT_LAYER}" = "unset" ]; then
+        ERROR_MSG="No theme is specified. Please specify a theme"
+        ERR_LINE=${LINENO}
         exit 1
     fi
 
     # 2. check if the DB shema is defined:
-    if [ "${SCHEMA_NAME}" = "unset" ];
-    then
-        echo "No DB schema is specified. Please specify a schema where to write the data"
-        exit 1
+    if [ "${SCHEMA_NAME}" = "unset" ]; then
+      ERROR_MSG="No DB schema is specified. Please specify a schema where to write the data"
+      ERR_LINE=${LINENO}
+      exit 1
     fi
 
-    # 2. check if the WGET_SOURCE is available
+    # 3. check if the WGET_SOURCE is available
+    if [ "${WGET_SOURCE}" = "unset" ]; then
+      ERROR_MSG="No data source provided! please provide a data."
+      ERR_LINE=${LINENO}
+      exit 1
+    fi
     check_data ${WGET_SOURCE}
-
-    # 3. check if the LAW_XML_DOWNLOAD (laws) are available --> the name of the file can change
-    #TODO this ist probably not needed any more!
-    check_data ${LAW_XML_DOWNLOAD}
 
     # 4. check if ili2pg is avaiable or downloadable
     if ! [ -f "${ili2pg}" ];
@@ -176,11 +186,13 @@ prepare_laws(){
   else
     # Now law to import!
     ERROR_MSG="All laws are missing!"
+    ERR_LINE=${LINENO}
     exit 1
   fi
 
   if [ ${#LAW_ARRAY[@]} -eq 0 ]; then
     ERROR_MSG="No valide law file to import!"
+    ERR_LINE=${LINENO}
     exit 1
   fi
 }
@@ -306,14 +318,13 @@ update_data() {
 ############################################################
 # clean                                                    #
 ############################################################
-#TODO avoid cleaning twice!
 clean() {
     exit_status=$?
     if [ ${exit_status} -ne 0 ]; then
       error_time=`date +"%Y-%m-%d %T"`
       echo "# clean after error #"
       # -------- error time, layer_id, schema, line number, bash_command, error msg -------- #
-      echo "${error_time}, ${INPUT_LAYER}, ${SCHEMA_NAME}, ${LINENO}, ${BASH_COMMAND}, ${ERROR_MSG}" >> ${ERROR_LOG_FILE}
+      echo "${error_time}, ${INPUT_LAYER}, ${SCHEMA_NAME}, ${ERR_LINE}, ${BASH_COMMAND}, ${ERROR_MSG}" >> ${ERROR_LOG_FILE}
     fi
     echo "remove ${INPUT_LAYER}"
     rm -rf ${INPUT_LAYER}
@@ -321,15 +332,20 @@ clean() {
 
 
 # clean up upon error
-trap 'trap_error ${LINENO} ${?}' ERR
-trap clean INT TERM EXIT
+trap clean INT TERM ERR EXIT
 
 
 ############################################################
 # Main program                                             #
 ############################################################
+set -e
+set -u
+set -o pipefail
+# set -x # uncomment to Debug
+
 ERROR_LOG_FILE="./error_logs.log"
 ERROR_MSG=""
+ERR_LINE=""
 
 PGHOST=localhost
 PGPORT=25432
@@ -346,26 +362,25 @@ WGET_SOURCE=unset
 WGET_FILENAME="data.zip"
 ZIP_DEST="data_zip"
 
-# TODO this needs to be modifiable
 LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
-LAW_XML="OeREBKRM_V2_0_Gesetze.xml"
 
 ili2pg_version="4.7.0"
 ili2pg_path="ili2pg"
 
-declare -a LAW_ARRAY
+declare -a LAW_ARRAY=()
 
 #--------------------------#
 # Get options & set options
 PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,LAWS:,INPUT_LAYER:,ILI2PGVERSION:,SOURCE:,ERROR_LOG:, -- "$@")
-VALID_ARGUMENTS=$?
+VALID_ARGUMENTS=$#
 
-echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
+# echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
 
 # if [ "${VALID_ARGUMENTS}" -eq 0 ] || [ "${VALID_ARGUMENTS}" != "0" ]; then
-if [ "${VALID_ARGUMENTS}" != "0" ]; then
+if [ "${VALID_ARGUMENTS}" -eq "0" ]; then
     help
-    exit 1
+    # break
+    exit 0
 fi
 
 # TODO run without eval
@@ -376,7 +391,8 @@ do
   case "$1" in
     --help | -h)
       help
-      break
+      # break
+      exit 0
       ;;
     --PGHOST)
       PGHOST=$2
@@ -451,16 +467,7 @@ done
 # Set the seccondary variables
 WGET_TARGET="${INPUT_LAYER}"
 
-# TODO on occasion move this into load_fed_themes.sh
-if [[ "${WGET_SOURCE}" == "unset" ]]; then
-    WGET_SOURCE="https://data.geo.admin.ch/${INPUT_LAYER}/${WGET_FILENAME}"
-    echo "----------------------------------"
-    echo "no download source given! Using the standart source:"
-    echo "${WGET_SOURCE}"
-    echo "----------------------------------"
-fi
-
-if [ -z ${LAWS} ]; then
+if [[ -z ${LAWS} ]] || [[ ${LAWS} = "unset" ]]; then
     LAWS="${LAW_XML_DOWNLOAD}"
     echo "----------------------------------"
     echo "no laws prowided! Using the standart law file:"
@@ -493,8 +500,6 @@ loaddata_main() {
     #    - no loger available objects are removed
     update_data
   fi
-
-  clean
 }
 
 loaddata_main

@@ -25,6 +25,23 @@ With `docker-compose.yaml` an empty example DB is provided that can be used to t
 
 ## Update the script in a local project
 
-To include the scripts within a project you can use `update_script_data_import.sh` to get updates. 
+To include the scripts within a project you can use `update_script_data_import.sh` to get updates.
 
 **Note:** this is not very well tested so be carful!!!
+
+# How to read the error_logs.log
+
+This log file contains the log information for every theme that ran into an error when it ran through `loaddata.sh`
+The following table is the result when running the scripts with the example configuration from `FEDTHEMES.csv`.
+
+|error time|layer_id|schema|line number|bash_command|error msg|
+|---|---|---|---|---|---|
+|2022-07-04 20:47:18|ch.astra.baulinien-nationalstrassen_v2_0.oereb|motorways_building_lines|195|exit 1|No valide law file to import!|
+|2022-07-04 20:48:16|ch.bav.kataster-belasteter-standorte-oev_v2_0.oereb|contaminated_public_transport_sites|77|exit 1|The file http://bad_download_url is not available.|
+2022-07-04 20:48:33|ch.BelasteteStandorte|contaminated_sites||`java -jar ${ili2pg} --import --dbhost ${PGHOST} --dbport ${P}...`||
+
+# TODO
+
+- test the update function
+- improve input reading
+- add config for a docker container in which the scripts can be run
