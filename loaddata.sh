@@ -168,18 +168,19 @@ prepare_laws(){
         LAW_ARRAY+="${INPUT_LAYER}/${ZIP_DEST}/${law}"
       else
         echo "---------------NOTICE----------------------"
-        echo "the law ${law} can not be found as file nor as url it will be ignored!"
+        echo "The law ${law} can neither be found as file nor as url."
+        echo "It will be ignored!"
         echo "-------------------------------------------"
       fi
     done
   else
-    # empty
-    echo "ERROR -------- All laws are missing!"
+    # Now law to import!
+    ERROR_MSG="All laws are missing!"
     exit 1
   fi
 
   if [ ${#LAW_ARRAY[@]} -eq 0 ]; then
-    echo "ERROR -------- No valide law file to import!"
+    ERROR_MSG="No valide law file to import!"
     exit 1
   fi
 }
@@ -238,7 +239,7 @@ import_laws() {
           --dbpwd ${PGPASSWORD} \
           --dbschema ${SCHEMA_NAME} \
           --dataset ${var_dataset} \
-          "${law}"  # > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
+          "${law}"  > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
     done
 }
 
@@ -260,7 +261,7 @@ import_data() {
         --defaultSrsCode 2056 \
         --strokeArcs \
         --dataset ${var_dataset} \
-        "${INPUT_LAYER}/${DATA_XML}"  > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
+        "${INPUT_LAYER}/${DATA_XML}" > /dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -282,7 +283,7 @@ update_data() {
           --dbpwd ${PGPASSWORD} \
           --dbschema ${SCHEMA_NAME} \
           --dataset ${var_dataset} \
-          "${law}"  > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
+          "${law}" > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
     done
 
     echo "# update_data #"
@@ -305,19 +306,30 @@ update_data() {
 ############################################################
 # clean                                                    #
 ############################################################
+#TODO avoid cleaning twice!
 clean() {
-    echo "# clean #"
+    exit_status=$?
+    if [ ${exit_status} -ne 0 ]; then
+      error_time=`date +"%Y-%m-%d %T"`
+      echo "# clean after error #"
+      # -------- error time, layer_id, schema, line number, bash_command, error msg -------- #
+      echo "${error_time}, ${INPUT_LAYER}, ${SCHEMA_NAME}, ${LINENO}, ${BASH_COMMAND}, ${ERROR_MSG}" >> ${ERROR_LOG_FILE}
+    fi
     echo "remove ${INPUT_LAYER}"
     rm -rf ${INPUT_LAYER}
 }
 
+
 # clean up upon error
-trap clean ERR EXIT
+trap 'trap_error ${LINENO} ${?}' ERR
+trap clean INT TERM EXIT
 
 
 ############################################################
 # Main program                                             #
 ############################################################
+ERROR_LOG_FILE="./error_logs.log"
+ERROR_MSG=""
 
 PGHOST=localhost
 PGPORT=25432
@@ -325,7 +337,7 @@ PGDB="test_DB"
 PGUSER="www-data"
 PGPASSWORD="www-data"
 
-SCHEMA_NAME=unset # "contaminated_public_transport_sites"
+SCHEMA_NAME=unset
 
 CREATE_SCHEMA=true
 
@@ -345,7 +357,7 @@ declare -a LAW_ARRAY
 
 #--------------------------#
 # Get options & set options
-PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcsl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,INPUT_LAYER:,ILI2PGVERSION:,SOURCE:,LAWS: -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,LAWS:,INPUT_LAYER:,ILI2PGVERSION:,SOURCE:,ERROR_LOG:, -- "$@")
 VALID_ARGUMENTS=$?
 
 echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
@@ -356,6 +368,7 @@ if [ "${VALID_ARGUMENTS}" != "0" ]; then
     exit 1
 fi
 
+# TODO run without eval
 eval set -- "${PARSED_ARGUMENTS}"
 
 while :
@@ -413,9 +426,14 @@ do
       echo "set data source to: $2"
       shift
       ;;
-    --LAWS | -l)
+    --LAWS)
       LAWS=$2
       echo "set law sources: $2"
+      shift
+      ;;
+    --ERROR_LOG)
+      ERROR_LOG_FILE=$2
+      echo "set error logs to: $2"
       shift
       ;;
     --) # end of the argments; break out of the while
@@ -433,6 +451,7 @@ done
 # Set the seccondary variables
 WGET_TARGET="${INPUT_LAYER}"
 
+# TODO on occasion move this into load_fed_themes.sh
 if [[ "${WGET_SOURCE}" == "unset" ]]; then
     WGET_SOURCE="https://data.geo.admin.ch/${INPUT_LAYER}/${WGET_FILENAME}"
     echo "----------------------------------"
@@ -455,21 +474,24 @@ ili2pg="${ili2pg_path}/ili2pg-${ili2pg_version}.jar"
 ili2pg_zip="ili2pg-${ili2pg_version}.zip"
 ili2pg_url="https://downloads.interlis.ch/ili2pg/${ili2pg_zip}"
 
-#-------------------#
+#----------------------------------#
 # Run the functions
 loaddata_main() {
   clean
   run_check
   download
-
   if [ ${CREATE_SCHEMA} == "true" ]; then
-    # creat the schema import the data and the laws and creat missing tables
+    # create the schema, import the data and the laws
     shema_import
     import_laws
     import_data
   else
-    # only run an update of the data
-    echo update_data
+    # Run an update of the data:
+    #    Updated data in the DB according to the transfed file.
+    #    - new objects are added
+    #    - current objects are updated
+    #    - no loger available objects are removed
+    update_data
   fi
 
   clean

@@ -4,7 +4,7 @@
 #   Marion Baumgartner, Camptocamp SA, Switzerland
 
 ############################################################
-# help                                                     #
+# help                   # TODO update help                #
 ############################################################
 help(){
     echo "Write/Update OEREB V2 data in a DB"
@@ -45,14 +45,17 @@ update() {
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
         --SOURCE $3 \
-        --LAWS $4
+        --LAWS $4 \
+        --ERROR_LOG ${ERROR_LOG_FILE}
 }
 
 ############################################################
 # loaddata                                                 #
 ############################################################
 loaddata() {
-    ${loaddata} \
+
+    if [[ $# -eq 4 ]]; then
+      ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
         --PGUSER ${PGUSER} \
@@ -61,12 +64,29 @@ loaddata() {
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
         --SOURCE $3 \
-        --LAWS $4
+        --LAWS $4 \
+        --ERROR_LOG ${ERROR_LOG_FILE}
+    elif [[ $# -eq 3 ]]; then
+       ${loaddata} \
+        --PGHOST ${PGHOST} \
+        --PGPASSWORD ${PGPW} \
+        --PGUSER ${PGUSER} \
+        --PGDB ${PGName} \
+        --PGPORT ${PGPORT} \
+        --SCHEMA_NAME $1 \
+        --INPUT_LAYER $2 \
+        --SOURCE $3 \
+        --ERROR_LOG ${ERROR_LOG_FILE}
+    fi
 }
 
 ############################################################
 # Main program                                             #
 ############################################################
+ERROR_LOG_FILE="./error_logs.log"
+# clean the error log file
+rm ${ERROR_LOG_FILE}
+
 # set current script path
 full_path=$(realpath $0)
 dir_path=$(dirname $full_path)
@@ -100,6 +120,7 @@ if [ "${VALID_ARGUMENTS}" != "0" ]; then
     exit 1
 fi
 
+# TODO run without eval
 eval set -- "${PARSED_ARGUMENTS}"
 
 while :
@@ -154,7 +175,7 @@ do
   shift
 done
 
-# # Use env. variables for DB connections:
+# # Use env. variables for DB connections -- TODO if needed--:
 # if [ ${ENVDB} == "true" ]; then
 #     PGHOST=${DBHOST}
 #     PGPORT=${DBPORT}
@@ -180,6 +201,12 @@ do
     input_layer=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record5[$j]}"`
     federal_theme=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record3[$j]}"`
     theme_url=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record4[$j]}"`
+
+    # for more simplicity - handle empty theme_url here
+    if [ -z ${theme_url} ]; then
+      theme_url="unset"
+    fi
+
     laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
 
     case ${federal_theme} in
@@ -193,4 +220,13 @@ do
             ;;
     esac
 done
-echo "--- Finished loading all layers from ${FEDTHEME} ---"
+
+
+if [ `wc -l < error_logs.log` -ge 0 ]; then
+    echo "---------------NOTICE------------------------"
+    echo "Not all layers could be loaded!"
+    echo "Check in ${ERROR_LOG_FILE} for more details!"
+    echo "--------------------------------------------"
+else
+    echo "--- Finished loading all layers from ${FEDTHEME} successfully ---"
+fi
