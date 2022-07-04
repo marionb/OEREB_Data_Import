@@ -29,7 +29,7 @@ To include the scripts within a project you can use `update_script_data_import.s
 
 **Note:** this is not very well tested so be carful!!!
 
-# How to read the error_logs.log
+## How to read the error_logs.log
 
 This log file contains the log information for every theme that ran into an error when it ran through `loaddata.sh`
 The following table is the result when running the scripts with the example configuration from `FEDTHEMES.csv`.
