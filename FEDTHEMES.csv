@@ -1,4 +1,4 @@
-ID,Schema,Federal(F) /Cantonal (C),Download,THEME ID,LAWS
+ID,DB SCHEMA,Load Y/N THEME,DOWNLOAD,INPUT_LAYER,LAWS
 ch.Nutzungsplanung,land_use_plans,N,unset,unset,unset
 ch.ProjektierungszonenNationalstrassen,motorways_project_planing_zones,Y,unset,ch.astra.projektierungszonen-nationalstrassen_v2_0.oereb,https://tesr_with_bad_url;http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml
 ch.BaulinienNationalstrassen,motorways_building_lines,Y,unset,ch.astra.baulinien-nationalstrassen_v2_0.oereb,this_will_give_an_error
