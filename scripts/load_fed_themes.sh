@@ -18,9 +18,9 @@ help(){
     echo "-h --help     Print this help"
     echo "-u --update   If this swich is called only data updates are performed"
     echo "-f --file     CSV file containing the themes: id,schema,C/F,Download,THEME ID "
-    # echo "-e --envDBVar Use environmet variabls for the DB connection"
+    echo "-e --envDBVar Use environmet variabls for the DB connection"
     echo "              The following variables are set:"
-    echo "              DBHOST, DBPORT, DBNAME, DBUSER, DBPASSWORD"
+    echo "              ePGHOST, ePGPORT, ePGNAME, ePGUSER, ePGPASSWORD"
     echo
     echo "Connection options:"
     echo "-------------------"
@@ -116,7 +116,7 @@ PGPW="www-data"
 ENVDB=false
 
 # Parsing command line arguments
-PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o huf: --long help,update,file:envDBVar,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:, -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o heuf: --long help,update,file:envDBVar,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:, -- "$@")
 VALID_ARGUMENTS=$?
 
 if [ "${VALID_ARGUMENTS}" != "0" ]; then
@@ -141,9 +141,9 @@ do
         FEDTHEME="$2"
         shift
         ;;
-    #--envDBVar | -e) # TODO read the DB connection params from evironment variables
-    #    ENVDB=true
-    #    ;;
+    --envDBVar | -e) # TODO read the DB connection params from evironment variables
+        ENVDB=true
+        ;;
     --PGHOST)
         PGHOST=$2
         echo "set PGHOST to : $2"
@@ -179,14 +179,33 @@ do
   shift
 done
 
-# # Use env. variables for DB connections -- TODO if needed--:
-# if [ ${ENVDB} == "true" ]; then
-#     PGHOST=${DBHOST}
-#     PGPORT=${DBPORT}
-#     PGName=${DBNAME}
-#     PGUSER=${DBUSER}
-#     PGPW=${DBPASSWORD}
-# fi
+# Use env. variables for DB connections -- TODO if needed--:
+if [ ${ENVDB} == "true" ]; then
+    set +u
+    if [[ -n "${ePGPASSWORD}" ]] && \
+        [[ -n "${ePGHOST}" ]] && \
+        [[ -n "${ePGPORT}" ]] && \
+        [[ -n "${ePGNAME}" ]] && \
+        [[ -n "${ePGUSER}" ]]; then
+      PGHOST=${ePGHOST}
+      PGPORT=${ePGPORT}
+      PGName=${ePGNAME}
+      PGUSER=${ePGUSER}
+      PGPW=${ePGPASSWORD}
+    else
+      echo "-------------ERROR---------------------"
+      echo "You are trying to use the DB connection params from env. variablse but one is not available."
+      echo "Make sure that the following variable are avaliable as env. vaiables!"
+      echo "PGHOST=${ePGHOST}"
+      echo "PGPORT=${ePGPORT}"
+      echo "PGName=${ePGNAME}"
+      echo "PGUSER=${ePGUSER}"
+      echo "PGPW=${ePGPASSWORD}"
+      echo "----------------------------------------"
+      exit 1
+    fi
+    set -u
+fi
 
 arr_record1=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f1) )
 arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
@@ -234,6 +253,9 @@ if [[ -f ${ERROR_LOG_FILE} ]] && [[ `wc -l < ${ERROR_LOG_FILE}` -ge 0 ]]; then
     echo "---------------NOTICE------------------------"
     echo "Not all layers could be loaded!"
     echo "Check in ${ERROR_LOG_FILE} for more details!"
+    echo
+    echo "Error logs:"
+    cat ${ERROR_LOG_FILE}
     echo "--------------------------------------------"
 else
     echo "--- Finished loading all layers from ${FEDTHEME} successfully ---"

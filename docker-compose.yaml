@@ -2,7 +2,7 @@ version: '3'
 
 services:
   # postgres 11 postgis 2.5 -> https://hub.docker.com/r/camptocamp/postgres/tags
-  db_old:
+  db:
     image: camptocamp/postgres:11-postgis-2.5
     environment:
       POSTGRES_USER: www-data
@@ -11,3 +11,17 @@ services:
     ports:
       - 25432:5432
 
+  data:
+    image: camptocamp/oereb_fed_data
+    build:
+      context: .
+    environment:
+      - ePGHOST=${PGHOST}
+      - ePGPORT=${PGPORT}
+      - ePGUSER=${PGUSER}
+      - ePGPASSWORD=${PGPASSWORD}
+      - ePGNAME=${PGDATABASE}
+    depends_on:
+    - db
+    # volumes:
+    # - ./scripts:/scripts

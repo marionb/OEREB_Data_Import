@@ -21,7 +21,16 @@ $ ./load_fed_themes.sh -h
 
 To load only a single Theme you can either configure the `FEDTHEMES.csv` or use directly the script `loaddata.sh`
 
-With `docker-compose.yaml` an empty example DB is provided that can be used to test writing data using the scripts.
+### Using Docker:
+
+The `docker-compose.yaml` contains an empty example DB is provided as well as a container which launches the script. To run:
+
+1. Create a `.env` (an example is given in `sample.env`). Specify another DB connection if needed
+2. Run:
+    ```
+    $ docker compose up --build
+    ```
+3. The container logs show if a theme could not be imported.
 
 ## Update the script in a local project
 
@@ -51,6 +60,8 @@ The following table is the result when running the scripts with the example conf
 |2022-07-04 20:47:18|ch.astra.baulinien-nationalstrassen_v2_0.oereb|motorways_building_lines|195|exit 1|No valide law file to import!|
 |2022-07-04 20:48:16|ch.bav.kataster-belasteter-standorte-oev_v2_0.oereb|contaminated_public_transport_sites|77|exit 1|The file http://bad_download_url is not available.|
 2022-07-04 20:48:33|ch.BelasteteStandorte|contaminated_sites||`java -jar ${ili2pg} --import --dbhost ${PGHOST} --dbport ${P}...`||
+
+**NOTE** currently they are not persists running the script within the docker container. The content is how ever output at the end if a theme did not load properly
 
 # TODO
 

@@ -72,7 +72,7 @@ help()
 check_data() {
     # Check if tranlsation files for Text and Theme exist.
     file_to_check=${1}
-    if ( ! wget --spider "${file_to_check}" 2>/dev/null ); then
+    if ( ! ${WGET_COMMAND} --spider "${file_to_check}" 2>/dev/null ); then
        ERROR_MSG="The file ${file_to_check} is not available."
        ERR_LINE=${LINENO}
        exit 1
@@ -88,7 +88,7 @@ download_targets() {
     echo "# download_targets #"
     echo "downloading file ${target}"
     echo "${PWD}"
-    wget -N ${target}
+    ${WGET_COMMAND} -N ${target}
 }
 
 ############################################################
@@ -162,7 +162,7 @@ prepare_laws(){
     for (( j=0; j<length; j++ )); do
       law=${GIVEN_LAW_ARRAY[$j]}
 
-      if ( wget --spider "${law}" 2>/dev/null ); then # 1 check if it is a URL that can be dwonloades
+      if ( ${WGET_COMMAND} --spider "${law}" 2>/dev/null ); then # 1 check if it is a URL that can be dwonloades
         echo "${law} is a URL download it:"
         cd "${WGET_TARGET}"
         download_targets ${law}
@@ -229,7 +229,7 @@ shema_import(){
         --expandLocalised \
         --setupPgExt \
         --strokeArcs \
-        --models OeREBKRMtrsfr_V2_0  >/dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
+        --models OeREBKRMtrsfr_V2_0  # >/dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -338,6 +338,9 @@ trap clean INT TERM ERR EXIT
 ############################################################
 # Main program                                             #
 ############################################################
+WGET_COMMAND="wget --no-check-certificate"
+# WGET_COMMAND="wget"
+
 set -e
 set -u
 set -o pipefail
