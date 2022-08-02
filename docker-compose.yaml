@@ -8,6 +8,8 @@ services:
       POSTGRES_USER: www-data
       POSTGRES_PASSWORD: www-data
       POSTGRES_DB: test_DB
+    volumes:
+    - ./data/01_init_script.sql:/docker-entrypoint-initdb.d/01_init_script.sql
     ports:
       - 25432:5432
 

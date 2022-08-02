@@ -39,6 +39,7 @@ help()
    echo "-----------------"
    echo "--INPUT_LAYER        the oereb V2 layer to load. A list of availabe layers can be found under: http://models.geo.admin.ch/V_D/OeREB -> OeREBKRM_V2_0_Themen_xxx.xml"
    echo "                     this script can only load data that is available on  https://data.geo.admin.ch/"
+   echo "--INPUT_LAYER_ID     the oereb V2 layer id. This is the ID as it is configured in pyramid_oereb. i.e ch.BaulinienNationalstrassen, ch.BaulinienEisenbahnanlagen, ..."
    echo "--SCHEMA_NAME        the name of the DB schema to write the data in. If the oprion CREATE_SCHEMA is not set to false the schema will be created"
    echo
    echo "--SOURCE -s          data source to fetch the data from. The federal themes can be found under:"
@@ -96,18 +97,18 @@ download_targets() {
 ############################################################
 run_check() {
     echo "# run_checks #"
-    # 1. check imput:
+    # 1.1. check imput:
     if [ "${INPUT_LAYER}" = "unset" ]; then
-        ERROR_MSG="No theme is specified. Please specify a theme"
+        ERROR_MSG="No theme/input_layer is specified. Please specify a theme"
         ERR_LINE=${LINENO}
         exit 1
     fi
 
-    # 2. check if the DB shema is defined:
-    if [ "${SCHEMA_NAME}" = "unset" ]; then
-      ERROR_MSG="No DB schema is specified. Please specify a schema where to write the data"
-      ERR_LINE=${LINENO}
-      exit 1
+    # 1.2. check imput:
+    if [ "${INPUT_LAYER_ID}" = "unset" ]; then
+        ERROR_MSG="No theme id/input_layer_id is specified. Please specify a theme id"
+        ERR_LINE=${LINENO}
+        exit 1
     fi
 
     # 3. check if the WGET_SOURCE is available
@@ -203,7 +204,7 @@ prepare_laws(){
 shema_import(){
     echo "# shema_import #"
     # remove old schema if it exists:
-    psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -c "DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE;"
+    psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -v "ON_ERROR_STOP=on" -c "DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE;"
     # create new shema
     java -jar ${ili2pg} \
         --schemaimport \
@@ -229,7 +230,7 @@ shema_import(){
         --expandLocalised \
         --setupPgExt \
         --strokeArcs \
-        --models OeREBKRMtrsfr_V2_0  # >/dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
+        --models OeREBKRMtrsfr_V2_0 >/dev/null 2>&1 #Remove '> /dev/null 2>&1' to debug
 }
 
 ############################################################
@@ -316,6 +317,22 @@ update_data() {
 }
 
 ############################################################
+# update_di_table                                          #
+############################################################
+update_di_table() {
+  echo "# update_di_table"
+  # set current script path
+  local full_path=$(realpath $0)
+  local dir_path=$(dirname $full_path)
+  # set path variables with file path
+  local sql_script="${dir_path}/update_DI_table.sql"
+  local office__ID
+  psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" \
+    -v "ON_ERROR_STOP=on" -v "INPUT_LAYER_ID='${INPUT_LAYER_ID}'" -v "OFFICE_ID='ch.admin.bk'"\
+    -f ${sql_script}
+}
+
+############################################################
 # clean                                                    #
 ############################################################
 clean() {
@@ -374,7 +391,7 @@ declare -a LAW_ARRAY=()
 
 #--------------------------#
 # Get options & set options
-PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,LAWS:,INPUT_LAYER:,ILI2PGVERSION:,SOURCE:,ERROR_LOG:, -- "$@")
+PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,LAWS:,INPUT_LAYER:,INPUT_LAYER_ID:,ILI2PGVERSION:,SOURCE:,ERROR_LOG:, -- "$@")
 VALID_ARGUMENTS=$#
 
 # echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
@@ -435,6 +452,11 @@ do
       echo "set INPUT_LAYER to : $2"
       shift
       ;;
+    --INPUT_LAYER_ID)
+      INPUT_LAYER_ID=$2
+      echo "set INPUT_LAYER_ID to : $2"
+      shift
+      ;;
     --ILI2PGVERSION)
       ILI2PGVERSION=$2
       echo "set ILI2PGVERSION to : $2"
@@ -491,17 +513,23 @@ loaddata_main() {
   run_check
   download
   if [ ${CREATE_SCHEMA} == "true" ]; then
-    # create the schema, import the data and the laws
+    # Clear old data and run an import of the data
+    # - Create the schema (it it exists drop it before)
+    # - Import the data and the laws
+    # - Update the DI table in pyramid_oereb_main
     shema_import
     import_laws
     import_data
+    update_di_table
   else
     # Run an update of the data:
     #    Updated data in the DB according to the transfed file.
     #    - new objects are added
     #    - current objects are updated
     #    - no loger available objects are removed
+    #    Update the DI table in pyramid_oereb_main
     update_data
+    update_di_table
   fi
 }
 

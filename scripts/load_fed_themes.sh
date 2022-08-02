@@ -4,7 +4,7 @@
 #   Marion Baumgartner, Camptocamp SA, Switzerland
 
 ############################################################
-# help                   # TODO update help                #
+# help                                                     #
 ############################################################
 help(){
     echo "Write/Update OEREB V2 data in a DB"
@@ -32,6 +32,31 @@ help(){
 }
 
 ############################################################
+# check_DB_connection                                      #
+############################################################
+check_DB_connection() {
+    echo "# check_DB_connection #"
+    local error_msg="Can not connect to DB! Check if the DB is available for connection AND if your connections parametres are correct"
+    # 1. check if the connection exists and is ready
+    if pg_isready -d ${PGName} -h ${PGHOST} -p ${PGPORT} -U ${PGUSER}; then
+      # 2. check if the DB is there and returning somthing upon query
+      psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPW} dbname=${PGName}" -v "ON_ERROR_STOP=on" -c "SELECT 1;" >/dev/null 2>&1
+      local exit_status=$?
+      if [ ${exit_status} -ne 0 ]; then
+        echo "-------------ERROR---------------------"
+        echo ${error_msg}
+        echo "---------------------------------------"
+        exit 1
+      fi
+    else
+      echo "-------------ERROR---------------------"
+      echo ${error_msg}
+      echo "---------------------------------------"
+      exit 1
+    fi
+}
+
+############################################################
 # update                                                   #
 ############################################################
 update() {
@@ -54,7 +79,7 @@ update() {
 ############################################################
 loaddata() {
 
-    if [[ $# -eq 4 ]]; then
+    if [[ $# -eq 5 ]]; then
       ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
@@ -63,10 +88,11 @@ loaddata() {
         --PGPORT ${PGPORT} \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
+        --INPUT_LAYER_ID $5 \
         --SOURCE $3 \
         --LAWS $4 \
         --ERROR_LOG ${ERROR_LOG_FILE}
-    elif [[ $# -eq 3 ]]; then
+    elif [[ $# -eq 4 ]]; then
        ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
@@ -75,6 +101,7 @@ loaddata() {
         --PGPORT ${PGPORT} \
         --SCHEMA_NAME $1 \
         --INPUT_LAYER $2 \
+        --INPUT_LAYER_ID $4 \
         --SOURCE $3 \
         --ERROR_LOG ${ERROR_LOG_FILE}
     fi
@@ -141,7 +168,7 @@ do
         FEDTHEME="$2"
         shift
         ;;
-    --envDBVar | -e) # TODO read the DB connection params from evironment variables
+    --envDBVar | -e)
         ENVDB=true
         ;;
     --PGHOST)
@@ -179,7 +206,7 @@ do
   shift
 done
 
-# Use env. variables for DB connections -- TODO if needed--:
+# Use env. variables for DB connections
 if [ ${ENVDB} == "true" ]; then
     set +u
     if [[ -n "${ePGPASSWORD}" ]] && \
@@ -207,6 +234,8 @@ if [ ${ENVDB} == "true" ]; then
     set -u
 fi
 
+check_DB_connection
+
 arr_record1=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f1) )
 arr_record2=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f2) )
 arr_record3=( $(tail -n +2 ${FEDTHEME} | cut -d ',' -f3) )
@@ -224,6 +253,7 @@ do
 
     if [[ ${load_theme} = 'Y' ]]; then
       echo "${arr_record1[$j]} is a federal theme - treating"
+      input_layer_id=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record1[$j]}"`
       schema_name=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record2[$j]}"`
       input_layer=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record5[$j]}"`
       theme_url=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record4[$j]}"`
@@ -241,13 +271,12 @@ do
       laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
 
       [[ ${update} == "true" ]] && \
-        update ${schema_name} ${input_layer} ${theme_url} ${laws}|| \
-        loaddata ${schema_name} ${input_layer} ${theme_url} ${laws}
+        update ${schema_name} ${input_layer} ${theme_url} ${laws} ${input_layer_id} || \
+        loaddata ${schema_name} ${input_layer} ${theme_url} ${laws} ${input_layer_id}
     else
       echo "${arr_record1[$j]} is not a federal theme - passing"
     fi
 done
-
 
 if [[ -f ${ERROR_LOG_FILE} ]] && [[ `wc -l < ${ERROR_LOG_FILE}` -ge 0 ]]; then
     echo "---------------NOTICE------------------------"
@@ -257,6 +286,7 @@ if [[ -f ${ERROR_LOG_FILE} ]] && [[ `wc -l < ${ERROR_LOG_FILE}` -ge 0 ]]; then
     echo "Error logs:"
     cat ${ERROR_LOG_FILE}
     echo "--------------------------------------------"
+    exit 1
 else
     echo "--- Finished loading all layers from ${FEDTHEME} successfully ---"
 fi

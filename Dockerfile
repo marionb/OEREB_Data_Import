@@ -1,4 +1,4 @@
-FROM ubuntu:21.10
+FROM ubuntu:20.04
 COPY scripts /app/
 
 ARG BASH_PACKAGES="wget unzip postgresql-client default-jre"
