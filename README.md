@@ -44,7 +44,7 @@ This file contains the configuration of the individual themes. It is a comma sep
 
 |ID|DB SCHEMA|Load THEME Y/N|DOWNLOAD|INPUT_LAYER|LAWS|
 |---|---|---|---|---|---|
-|The theme ID. This is given for fed. themes|the name of the DB schema into which the data will be loaded|Determines if the theme is treated by the script od not|The download path if data for the data. If not given the default is `https://data.geo.admin.ch/<INPUT_LAYER>/data.zip`|The ID of the theme. Mainly used to create the default download URL|An option to customize the URL/file path where the laws can be found. This is a list separated by `;` Defaults to `http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml`|
+|The theme ID. This is given for fed. themes|the name of the DB schema into which the data will be loaded|Determines if the theme is treated by the script od not|The download path if data for the data. If not given the default is `https://data.geo.admin.ch/<INPUT_LAYER>/data.zip`|The ID of the theme. Mainly used to create the default download URL|An option to customize the URL/file path where the laws can be found. This is a list separated by `;` Defaults to `http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml`|
 
 This is with exception to the DB connection all the information needed to run the script `loaddata.sh`. It is passed to the script `load_fed_themed.sh` which iterates through all the entries in the file and executes `loaddata.sh` with them.
 

@@ -37,7 +37,7 @@ help()
    echo
    echo "Required options:"
    echo "-----------------"
-   echo "--INPUT_LAYER        the oereb V2 layer to load. A list of availabe layers can be found under: http://models.geo.admin.ch/V_D/OeREB -> OeREBKRM_V2_0_Themen_xxx.xml"
+   echo "--INPUT_LAYER        the oereb V2 layer to load. A list of availabe layers can be found under: http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Themen.xml"
    echo "                     this script can only load data that is available on  https://data.geo.admin.ch/"
    echo "--INPUT_LAYER_ID     the oereb V2 layer id. This is the ID as it is configured in pyramid_oereb. i.e ch.BaulinienNationalstrassen, ch.BaulinienEisenbahnanlagen, ..."
    echo "--SCHEMA_NAME        the name of the DB schema to write the data in. If the oprion CREATE_SCHEMA is not set to false the schema will be created"
@@ -50,7 +50,7 @@ help()
    echo "--ILI2PGVERSION      ili2pg version to be used (default: 4.6.0)" #TODO test with newer version
    echo "--CREATE_SCHEMA -c   switch to drop (if it exists) and creat the schema (default: on/true)"
    echo "--LAWS               pass the files from which the laws are imported. Default used is given with the variable LAW_XML_DOWNLOAD and is currently set to:"
-   echo "                     http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
+   echo "                     http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml"
    echo "                     The given file name can be:"
    echo "                     a) a valide URL download path"
    echo "                     b) a valide file path on the system"
@@ -382,7 +382,7 @@ WGET_SOURCE=unset
 WGET_FILENAME="data.zip"
 ZIP_DEST="data_zip"
 
-LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml"
+LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml"
 
 ili2pg_version="4.7.0"
 ili2pg_path="ili2pg"
