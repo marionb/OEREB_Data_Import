@@ -60,18 +60,34 @@ check_DB_connection() {
 # update                                                   #
 ############################################################
 update() {
-    ${loaddata} \
+    if [[ $# -eq 5 ]]; then
+      ${loaddata} \
         --PGHOST ${PGHOST} \
         --PGPASSWORD ${PGPW} \
         --PGUSER ${PGUSER} \
         --PGDB ${PGName} \
         --PGPORT ${PGPORT} \
-        --CREATE_SCHEMA \
         --SCHEMA_NAME $1 \
+        --CREATE_SCHEMA \
         --INPUT_LAYER $2 \
+        --INPUT_LAYER_ID $5 \
         --SOURCE $3 \
         --LAWS $4 \
         --ERROR_LOG ${ERROR_LOG_FILE}
+    elif [[ $# -eq 4 ]]; then
+      ${loaddata} \
+        --PGHOST ${PGHOST} \
+        --PGPASSWORD ${PGPW} \
+        --PGUSER ${PGUSER} \
+        --PGDB ${PGName} \
+        --PGPORT ${PGPORT} \
+        --SCHEMA_NAME $1 \
+        --INPUT_LAYER $2 \
+        --CREATE_SCHEMA \
+        --INPUT_LAYER_ID $4 \
+        --SOURCE $3 \
+        --ERROR_LOG ${ERROR_LOG_FILE}
+    fi
 }
 
 ############################################################
@@ -110,7 +126,6 @@ loaddata() {
 ############################################################
 # Main program                                             #
 ############################################################
-# set -e
 set -u
 set -o pipefail
 
@@ -143,68 +158,67 @@ PGPW="www-data"
 ENVDB=false
 
 # Parsing command line arguments
-PARSED_ARGUMENTS=$(getopt -a -n load_fed_themes -o heuf: --long help,update,file:envDBVar,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:, -- "$@")
-VALID_ARGUMENTS=$?
+OPTION_AMOUNT=$#
 
-if [ "${VALID_ARGUMENTS}" != "0" ]; then
-    help
-    exit 1
+if [[ ${OPTION_AMOUNT} > 0 ]]; then
+  while [ ${OPTION_AMOUNT} -gt 0 ]; do
+      OPTION_AMOUNT=$(( ${OPTION_AMOUNT}-1 ))
+      case "$1" in
+      --help | -h)
+          help
+          exit
+          ;;
+      --update | -u)
+          update=true
+          echo "set update to true"
+          ;;
+      --file | -f)
+          FEDTHEME="$2"
+          shift
+          ;;
+      --envDBVar | -e)
+          ENVDB=true
+          ;;
+      --PGHOST)
+          PGHOST=$2
+          echo "set PGHOST to : $2"
+          shift
+          ;;
+      --PGPORT)
+          PGPORT=$2
+          echo "set PGPORT to : $2"
+          shift
+          ;;
+      --PGDB)
+          PGName=$2
+          echo "set PGDB to : $2"
+          shift
+          ;;
+      --PGUSER)
+          PGUSER=$2
+          echo "set PGUSER to : $2"
+          shift
+          ;;
+      --PGPASSWORD)
+          PGPW=$2
+          shift
+          ;;
+      --) # end of the argments; break out of the while
+          shift
+          break
+          ;;
+      -?*)
+          printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+          #echo "Error: Invalid option: $1"
+          #echo "Try ./load_fed_themes.sh -h"
+          exit 1
+          ;;
+      *) # Default case: No more options, so break out of the loop.
+          break
+    esac
+    shift
+  done
 fi
-
-# TODO run without eval
-eval set -- "${PARSED_ARGUMENTS}"
-
-while :
-do
-  case "$1" in
-    --help | -h)
-        help
-        exit
-        ;;
-    --update | -u)
-        update=true
-        ;;
-    --file | -f)
-        FEDTHEME="$2"
-        shift
-        ;;
-    --envDBVar | -e)
-        ENVDB=true
-        ;;
-    --PGHOST)
-        PGHOST=$2
-        echo "set PGHOST to : $2"
-        shift
-        ;;
-    --PGPORT)
-        PGPORT=$2
-        echo "set PGPORT to : $2"
-        shift
-        ;;
-    --PGDB)
-        PGName=$2
-        echo "set PGDB to : $2"
-        shift
-        ;;
-    --PGUSER)
-        PGUSER=$2
-        echo "set PGUSER to : $2"
-        shift
-        ;;
-    --PGPASSWORD)
-        PGPW=$2
-        shift
-        ;;
-    --) # end of the argments; break out of the while
-        shift; break ;;
-    *) # Invalid option
-        echo "Error: Invalid option: $1"
-        echo "Try ./load_fed_themes.sh -h"
-        exit 1
-        ;;
-  esac
-  shift
-done
 
 # Use env. variables for DB connections
 if [ ${ENVDB} == "true" ]; then
@@ -270,9 +284,12 @@ do
 
       laws=`sed -e 's/^"//' -e 's/"$//' <<<"${arr_record6[$j]}"`
 
-      [[ ${update} == "true" ]] && \
-        update ${schema_name} ${input_layer} ${theme_url} ${laws} ${input_layer_id} || \
+      if [[ ${update} == "true" ]]; then
+        update ${schema_name} ${input_layer} ${theme_url} ${laws} ${input_layer_id}
+      else
         loaddata ${schema_name} ${input_layer} ${theme_url} ${laws} ${input_layer_id}
+      fi
+
     else
       echo "${arr_record1[$j]} is not a federal theme - passing"
     fi

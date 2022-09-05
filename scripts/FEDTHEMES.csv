@@ -1,6 +1,6 @@
 ID,DB SCHEMA,Load Y/N THEME,DOWNLOAD,INPUT_LAYER,LAWS
 ch.Nutzungsplanung,land_use_plans,N,unset,unset,unset
-ch.ProjektierungszonenNationalstrassen,motorways_project_planing_zones,Y,unset,ch.astra.projektierungszonen-nationalstrassen_v2_0.oereb,https://tesr_with_bad_url;http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml
+ch.ProjektierungszonenNationalstrassen,motorways_project_planing_zones,Y,unset,ch.astra.projektierungszonen-nationalstrassen_v2_0.oereb,https://tesr_with_bad_url;http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml
 ch.BaulinienNationalstrassen,motorways_building_lines,Y,unset,ch.astra.baulinien-nationalstrassen_v2_0.oereb,this_will_give_an_error
 ch.ProjektierungszonenEisenbahnanlagen,railways_project_planning_zones,Y,unset,ch.bav.projektierungszonen-eisenbahnanlagen_v2_0.oereb,unset
 ch.BaulinienEisenbahnanlagen,railways_building_lines,Y,unset,ch.bav.baulinien-eisenbahnanlagen_v2_0.oereb,unset
@@ -17,4 +17,4 @@ ch.StatischeWaldgrenzen,forest_perimeters,N,unset,unset,unset
 ch.Waldabstandslinien,forest_distance_lines,N,unset,unset,unset
 ch.ProjektierungszonenStarkstromanlagen,nominal_high_voltage_reserved_zones,Y,unset,ch.bfe.projektierungszonen-starkstromanlagen_v2_0.oereb,unset
 ch.BaulinienStarkstromanlagen,high_voltage_installations_building_lines,Y,unset,ch.bfe.baulinien-starkstromanlagen_v2_0.oereb,unset
-ch.BelasteteStandorte,contaminated_sites,Y,https://sz.altlast4web.ch/interlis_exports/oereb2/data.zip,ch.BelasteteStandorte,OeREBKRM_V2_0_Gesetze-Kanton.xml;http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze_20210414.xml
+ch.BelasteteStandorte,contaminated_sites,Y,https://sz.altlast4web.ch/interlis_exports/oereb2/data.zip,ch.BelasteteStandorte,OeREBKRM_V2_0_Gesetze-Kanton.xml;http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml

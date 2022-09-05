@@ -199,12 +199,12 @@ prepare_laws(){
 }
 
 ############################################################
-# shema_import                                             #
+# schema_import                                             #
 ############################################################
-shema_import(){
-    echo "# shema_import #"
-    # remove old schema if it exists:
-    psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" -v "ON_ERROR_STOP=on" -c "DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE;"
+schema_import(){
+    echo "# schema_import #"
+    # remove the temporary import schema it exists - it should not but this is to be shure:
+    psql "${DB_CONNECTION}" -v "ON_ERROR_STOP=on" -c "DROP SCHEMA IF EXISTS ${TEMP_IMPORT_SCHEMA_NAME} CASCADE;"
     # create new shema
     java -jar ${ili2pg} \
         --schemaimport \
@@ -213,7 +213,7 @@ shema_import(){
         --dbdatabase ${PGDB} \
         --dbusr ${PGUSER} \
         --dbpwd ${PGPASSWORD} \
-        --dbschema ${SCHEMA_NAME} \
+        --dbschema ${TEMP_IMPORT_SCHEMA_NAME} \
         --defaultSrsAuth "EPSG" \
         --defaultSrsCode "2056" \
         --createFk \
@@ -250,7 +250,7 @@ import_laws() {
           --dbdatabase ${PGDB} \
           --dbusr ${PGUSER} \
           --dbpwd ${PGPASSWORD} \
-          --dbschema ${SCHEMA_NAME} \
+          --dbschema ${TEMP_IMPORT_SCHEMA_NAME} \
           --dataset ${var_dataset} \
           "${law}"  > /dev/null  2>&1 #Remove '> /dev/null 2>&1' to debug
     done
@@ -269,7 +269,7 @@ import_data() {
         --dbdatabase ${PGDB} \
         --dbusr ${PGUSER} \
         --dbpwd ${PGPASSWORD} \
-        --dbschema ${SCHEMA_NAME} \
+        --dbschema ${TEMP_IMPORT_SCHEMA_NAME} \
         --defaultSrsAuth EPSG \
         --defaultSrsCode 2056 \
         --strokeArcs \
@@ -317,17 +317,37 @@ update_data() {
 }
 
 ############################################################
+# rename_schema                                            #
+############################################################
+rename_schema() {
+  # Remove the old schema and rename the new one. Do nothing if the new one does not exist.
+  # In this case the old data will still be used.
+  echo "# rename_schema #"
+
+  schema_exists=$(psql -qt "${DB_CONNECTION}"  -c "SELECT exists(SELECT schema_name FROM information_schema.schemata WHERE schema_name = '${TEMP_IMPORT_SCHEMA_NAME}');")
+  if [ ${schema_exists} == t ]; then # the new schema exists
+      # drop the old shema
+      # rename the new shema to the name of the old
+      psql -qt "${DB_CONNECTION}"  \
+        -c "DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE; ALTER SCHEMA ${TEMP_IMPORT_SCHEMA_NAME} RENAME TO ${SCHEMA_NAME};"
+
+  else # the new schema does not exist: do nothing
+      echo "schema does not exist"
+  fi
+}
+
+############################################################
 # update_di_table                                          #
 ############################################################
 update_di_table() {
-  echo "# update_di_table"
   # set current script path
+  echo "# update_di_table #"
   local full_path=$(realpath $0)
   local dir_path=$(dirname $full_path)
   # set path variables with file path
   local sql_script="${dir_path}/update_DI_table.sql"
   local office__ID
-  psql "host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}" \
+  psql "${DB_CONNECTION}" \
     -v "ON_ERROR_STOP=on" -v "INPUT_LAYER_ID='${INPUT_LAYER_ID}'" -v "OFFICE_ID='ch.admin.bk'"\
     -f ${sql_script}
 }
@@ -340,10 +360,13 @@ clean() {
     if [ ${exit_status} -ne 0 ]; then
       error_time=`date +"%Y-%m-%d %T"`
       echo "# clean after error #"
+      # remove TEMP_IMPORT_SCHEMA_NAME in DB to clean up
+      psql -qt "${DB_CONNECTION}"  \
+        -c "DROP SCHEMA IF EXISTS ${TEMP_IMPORT_SCHEMA_NAME} CASCADE;"
       # -------- error time, layer_id, schema, line number, bash_command, error msg -------- #
       echo "${error_time}, ${INPUT_LAYER}, ${SCHEMA_NAME}, ${ERR_LINE}, ${BASH_COMMAND}, ${ERROR_MSG}" >> ${ERROR_LOG_FILE}
     fi
-    echo "remove ${INPUT_LAYER}"
+    echo "# general clean up: remove ${INPUT_LAYER}"
     rm -rf ${INPUT_LAYER}
 }
 
@@ -374,6 +397,10 @@ PGUSER="www-data"
 PGPASSWORD="www-data"
 
 SCHEMA_NAME=unset
+# Schema name of the temporary import shema.
+# If all goes well with the import then the schema is renamerd to SCHEMA_NAME.
+# This is to be able to rollbalck if somthing goes wrong
+TEMP_IMPORT_SCHEMA_NAME=unset
 
 CREATE_SCHEMA=true
 
@@ -381,6 +408,7 @@ INPUT_LAYER=unset
 WGET_SOURCE=unset
 WGET_FILENAME="data.zip"
 ZIP_DEST="data_zip"
+LAWS=unset
 
 LAW_XML_DOWNLOAD="http://models.geo.admin.ch/V_D/OeREB/OeREBKRM_V2_0_Gesetze.xml"
 
@@ -391,27 +419,19 @@ declare -a LAW_ARRAY=()
 
 #--------------------------#
 # Get options & set options
-PARSED_ARGUMENTS=$(getopt -a -n loaddata -o hcl --long help,PGHOST:,PGPORT:,PGDB:,PGUSER:,PGPASSWORD:,SCHEMA_NAME:,CREATE_SCHEMA,LAWS:,INPUT_LAYER:,INPUT_LAYER_ID:,ILI2PGVERSION:,SOURCE:,ERROR_LOG:, -- "$@")
-VALID_ARGUMENTS=$#
 
-# echo "PARSED_ARGUMENTS is ${PARSED_ARGUMENTS}"
+OPTION_AMOUNT=$(( $#/2 ))
 
-# if [ "${VALID_ARGUMENTS}" -eq 0 ] || [ "${VALID_ARGUMENTS}" != "0" ]; then
-if [ "${VALID_ARGUMENTS}" -eq "0" ]; then
+if [ ${OPTION_AMOUNT} -le 4 ]; then
     help
-    # break
-    exit 0
+    exit 1
 fi
 
-# TODO run without eval
-eval set -- "${PARSED_ARGUMENTS}"
-
-while :
-do
+while [ ${OPTION_AMOUNT} -gt 0 ]; do
+  OPTION_AMOUNT=$(( ${OPTION_AMOUNT}-1 ))
   case "$1" in
     --help | -h)
       help
-      # break
       exit 0
       ;;
     --PGHOST)
@@ -440,12 +460,14 @@ do
       ;;
     --SCHEMA_NAME)
       SCHEMA_NAME=$2
+      TEMP_IMPORT_SCHEMA_NAME="temp_import_$2"
       echo "set SCHEMA_NAME to : $2"
+      echo "set TEMP_IMPORT_SCHEMA_NAME to ${TEMP_IMPORT_SCHEMA_NAME}"
       shift
       ;;
     --CREATE_SCHEMA | -c)
       CREATE_SCHEMA=false
-      echo "CREATE_SCHEMA set to false"
+      echo "set CREATE_SCHEMA to false"
       ;;
     --INPUT_LAYER)
       INPUT_LAYER=$2
@@ -479,11 +501,11 @@ do
       ;;
     --) # end of the argments; break out of the while
       shift; break ;;
-    *) # Inalid option
-      echo "Error: Invalid option: $1"
-      echo "Try ./loaddata.sh -h"
-      exit 1
+    -?*) # Inalid option - ignore
+      printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
       ;;
+    *) # Default case: No more options, so break out of the loop.
+      break
   esac
   shift
 done
@@ -506,6 +528,7 @@ ili2pg="${ili2pg_path}/ili2pg-${ili2pg_version}.jar"
 ili2pg_zip="ili2pg-${ili2pg_version}.zip"
 ili2pg_url="https://downloads.interlis.ch/ili2pg/${ili2pg_zip}"
 
+DB_CONNECTION="host=${PGHOST} port=${PGPORT} user=${PGUSER} password=${PGPASSWORD} dbname=${PGDB}"
 #----------------------------------#
 # Run the functions
 loaddata_main() {
@@ -514,12 +537,13 @@ loaddata_main() {
   download
   if [ ${CREATE_SCHEMA} == "true" ]; then
     # Clear old data and run an import of the data
-    # - Create the schema (it it exists drop it before)
+    # - Create the schema (if it exists drop it before)
     # - Import the data and the laws
     # - Update the DI table in pyramid_oereb_main
-    shema_import
+    schema_import
     import_laws
     import_data
+    rename_schema
     update_di_table
   else
     # Run an update of the data:
