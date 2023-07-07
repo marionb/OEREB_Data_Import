@@ -111,6 +111,13 @@ run_check() {
         exit 1
     fi
 
+    # 2. check if the DB shema is defined:
+    if [ "${SCHEMA_NAME}" = "" ];
+    then
+        echo "No DB schema is specified. Please specify a schema where to write the data"
+        exit 1
+    fi
+
     # 3. check if the WGET_SOURCE is available
     if [ "${WGET_SOURCE}" = "unset" ]; then
       ERROR_MSG="No data source provided! please provide a data."
